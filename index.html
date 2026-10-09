@@ -7,136 +7,208 @@
 <title>Fraud Detection Case Study</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
 <style>
-/* Layout: single reading column, facts first, one diagram per section. Signal amber marks fraud everywhere. */
+/* Layout: dark hero with a live field of payment dots (amber = fraud), then a light reading column of figures. One loud moment (the dot field), everything else quiet. */
 :root {
-  --bg: #f6f7fa;
+  --bg: #f4f6fb;
   --surface: #ffffff;
-  --ink: #16213a;
-  --muted: #55607a;
-  --line: #d9deea;
+  --ink: #131c33;
+  --muted: #56617c;
+  --line: #dbe0ec;
   --navy: #1f3864;
-  --fraud: #c2570a;
-  --fraud-soft: #fbe3cf;
-  --ok: #cfd6e6;
-  --good: #1d7a55;
-  --bad: #a3361f;
+  --fraud: #c4560a;
+  --fraud-soft: #fdebdb;
+  --ok: #ccd4e6;
+  --good: #1b7a54;
+  --bad: #a8381f;
+  --hero: #0b1330;
+  --hero-ink: #eef2fc;
+  --hero-muted: #9db0d8;
+  --hero-fraud: #ffa24a;
+  --font-display: "Bricolage Grotesque", "IBM Plex Sans", system-ui, sans-serif;
   --font-body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
   --font-mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --bg: #0f1526; --surface: #172039; --ink: #e6eaf5; --muted: #9aa5c2; --line: #2b3657;
-    --navy: #8fb0ee; --fraud: #f29a52; --fraud-soft: #4a2a12; --ok: #34406a; --good: #52c79a; --bad: #f08a73;
+    --bg: #0e1426; --surface: #161f3a; --ink: #e7ebf6; --muted: #9ba7c6; --line: #2a3558;
+    --navy: #94b3ee; --fraud: #ff9f45; --fraud-soft: #47280f; --ok: #33406b; --good: #52c79a; --bad: #f28b74;
     color-scheme: dark;
   }
 }
 :root[data-theme="dark"] {
-  --bg: #0f1526; --surface: #172039; --ink: #e6eaf5; --muted: #9aa5c2; --line: #2b3657;
-  --navy: #8fb0ee; --fraud: #f29a52; --fraud-soft: #4a2a12; --ok: #34406a; --good: #52c79a; --bad: #f08a73;
+  --bg: #0e1426; --surface: #161f3a; --ink: #e7ebf6; --muted: #9ba7c6; --line: #2a3558;
+  --navy: #94b3ee; --fraud: #ff9f45; --fraud-soft: #47280f; --ok: #33406b; --good: #52c79a; --bad: #f28b74;
   color-scheme: dark;
 }
 * { box-sizing: border-box; }
-body {
-  margin: 0;
-  background: var(--bg); color: var(--ink);
-  font-family: var(--font-body); font-size: 17px; line-height: 1.6;
-  padding-inline: 16px; padding-block: 40px 72px;
-}
-main { max-width: 720px; margin: 0 auto; display: flex; flex-direction: column; gap: 44px; }
-header { display: flex; flex-direction: column; gap: 14px; }
-.kicker { font-family: var(--font-mono); font-size: 12.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--fraud); }
-h1 { font-size: clamp(30px, 6vw, 42px); line-height: 1.12; margin: 0; font-weight: 600; text-wrap: balance; letter-spacing: -.01em; }
-h2 { font-size: 22px; line-height: 1.25; margin: 0 0 12px; font-weight: 600; text-wrap: balance; }
+body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--font-body); font-size: 17px; line-height: 1.62; }
+.wrap { width: 100%; max-width: 920px; margin: 0 auto; padding-inline: 16px; }
+
+/* ---------- hero ---------- */
+.hero { background: var(--hero); color: var(--hero-ink); padding-block: 44px 0; overflow: hidden; }
+.kicker { font-family: var(--font-mono); font-size: 12.5px; letter-spacing: .1em; text-transform: uppercase; color: var(--hero-fraud); margin: 0 0 14px; }
+.hero h1 { font-family: var(--font-display); font-weight: 800; font-size: clamp(36px, 8vw, 68px); line-height: 1.02; letter-spacing: -.025em; margin: 0 0 18px; text-wrap: balance; max-width: 15ch; }
+.hero h1 em { font-style: normal; color: var(--hero-fraud); }
+.hero .lead { font-size: clamp(17px, 2.4vw, 20px); color: var(--hero-ink); max-width: 52ch; margin: 0 0 12px; }
+.hero .by { font-size: 14.5px; color: var(--hero-muted); margin: 0 0 30px; }
+.dotbox { position: relative; border-top: 1px solid rgba(157,176,216,.22); }
+#dots { display: block; width: 100%; height: 190px; }
+.dot-cap { font-family: var(--font-mono); font-size: 12px; letter-spacing: .03em; color: var(--hero-muted); padding-block: 10px 14px; display: flex; gap: 8px 18px; flex-wrap: wrap; }
+.dot-cap i { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 6px; vertical-align: -1px; }
+.dot-cap .a { background: var(--hero-fraud); }
+.dot-cap .b { background: rgba(157,176,216,.5); }
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); border-top: 1px solid rgba(157,176,216,.22); }
+.stats div { padding: 18px 16px 20px 0; min-width: 0; }
+.stats dt { font-family: var(--font-mono); font-size: 11.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--hero-muted); }
+.stats dd { margin: 2px 0 0; font-family: var(--font-display); font-weight: 700; font-size: clamp(28px, 5vw, 38px); line-height: 1.1; font-variant-numeric: tabular-nums; }
+.stats dd.hot { color: var(--hero-fraud); }
+.stats small { display: block; font-family: var(--font-body); font-weight: 400; font-size: 13.5px; color: var(--hero-muted); margin-top: 2px; }
+
+/* ---------- body ---------- */
+main { display: flex; flex-direction: column; gap: 64px; padding-block: 56px 72px; }
+section { display: flex; flex-direction: column; min-width: 0; }
+.sec-head { display: flex; align-items: baseline; gap: 14px; margin-bottom: 14px; }
+.sec-head .no { font-family: var(--font-display); font-weight: 800; font-size: 40px; line-height: 1; color: var(--fraud); font-variant-numeric: tabular-nums; }
+h2 { font-family: var(--font-display); font-weight: 700; font-size: clamp(24px, 4vw, 30px); line-height: 1.15; letter-spacing: -.01em; margin: 0; text-wrap: balance; }
+h3 { font-size: 16px; margin: 0 0 8px; font-weight: 600; }
 p { margin: 0 0 12px; max-width: 65ch; }
-.lead { font-size: 19px; color: var(--ink); max-width: 60ch; }
-.by { color: var(--muted); font-size: 15px; margin: 0; }
-section { display: flex; flex-direction: column; }
-.facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
-.facts div { background: var(--surface); padding: 12px 14px; min-width: 0; }
-.facts dt { font-family: var(--font-mono); font-size: 11.5px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
-.facts dd { margin: 2px 0 0; font-size: 22px; font-weight: 600; font-variant-numeric: tabular-nums; }
-.facts small { display: block; font-size: 13px; font-weight: 400; color: var(--muted); }
-.fig { background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 16px; margin: 6px 0 14px; min-width: 0; }
-.fig-title { font-family: var(--font-mono); font-size: 12px; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); margin: 0 0 10px; }
-.note { font-size: 14.5px; color: var(--muted); margin: 10px 0 0; }
-.strip { display: flex; height: 34px; border-radius: 4px; overflow: hidden; border: 1px solid var(--line); }
+.fig { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 20px; margin: 8px 0 16px; min-width: 0; }
+.fig-title { font-family: var(--font-mono); font-size: 12px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); margin: 0 0 14px; }
+.note { font-size: 14.5px; color: var(--muted); margin: 14px 0 0; max-width: 65ch; }
+b, strong { font-weight: 600; }
+code { font-family: var(--font-mono); font-size: .88em; background: var(--bg); border: 1px solid var(--line); border-radius: 4px; padding: 1px 6px; }
+a { color: var(--navy); }
+ul.plain { margin: 0 0 12px; padding-left: 20px; display: grid; gap: 8px; max-width: 65ch; }
+
+.strip { display: flex; height: 40px; border-radius: 6px; overflow: hidden; }
 .strip .ok { background: var(--ok); flex: 96.5; }
 .strip .fr { background: var(--fraud); flex: 3.5; }
-.strip-labels { display: flex; justify-content: space-between; gap: 12px; font-size: 14px; margin-top: 8px; flex-wrap: wrap; }
+.strip-labels { display: flex; justify-content: space-between; gap: 12px; font-size: 14.5px; margin-top: 10px; flex-wrap: wrap; }
 .strip-labels b { font-variant-numeric: tabular-nums; }
 .dot-fr { color: var(--fraud); }
-.bars { display: grid; grid-template-columns: 74px 1fr 56px; gap: 8px 10px; align-items: center; font-size: 14.5px; }
+
+.metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin: 6px 0 14px; }
+.metric { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 16px; min-width: 0; }
+.metric h3 { margin: 0 0 4px; font-family: var(--font-mono); font-size: 12px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); font-weight: 500; }
+.metric p { font-size: 15px; margin: 6px 0 0; color: var(--ink); }
+
+.bars { display: grid; grid-template-columns: 78px 1fr 52px; gap: 10px 12px; align-items: center; font-size: 14.5px; }
 .bars .lbl { font-family: var(--font-mono); font-size: 13px; color: var(--muted); }
-.bars .track { background: var(--bg); border-radius: 3px; height: 16px; overflow: hidden; min-width: 0; }
-.bars .fill { height: 100%; background: var(--fraud); }
+.bars .track { background: var(--bg); border-radius: 4px; height: 18px; overflow: hidden; min-width: 0; }
+.bars .fill { height: 100%; background: var(--fraud); border-radius: 4px; }
 .bars .fill.alt { background: var(--ok); }
-.bars .val { font-variant-numeric: tabular-nums; text-align: right; }
-.steps { list-style: none; padding: 0; margin: 0; display: grid; gap: 8px; }
-.steps li { display: grid; grid-template-columns: 30px 1fr; gap: 10px; align-items: start; background: var(--bg); border: 1px solid var(--line); border-radius: 5px; padding: 10px 12px; }
-.steps .n { font-family: var(--font-mono); font-size: 13px; color: var(--navy); border: 1px solid var(--navy); border-radius: 50%; width: 26px; height: 26px; display: grid; place-items: center; }
-.steps b { display: block; font-weight: 600; }
-.steps span.d { font-size: 14.5px; color: var(--muted); }
-.steps li.rule { border-color: var(--fraud); }
-.grid100 { display: grid; grid-template-columns: repeat(20, 1fr); gap: 3px; max-width: 360px; }
-.grid100 i { aspect-ratio: 1; background: var(--ok); border-radius: 2px; }
+.bars .val { font-variant-numeric: tabular-nums; text-align: right; font-weight: 500; }
+
+.steps { list-style: none; padding: 0; margin: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
+.steps li { position: relative; background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 14px 14px 14px; min-width: 0; }
+.steps .n { font-family: var(--font-mono); font-size: 12px; color: var(--navy); letter-spacing: .05em; }
+.steps b { display: block; margin: 2px 0 4px; line-height: 1.3; }
+.steps .d { font-size: 14.5px; color: var(--muted); display: block; }
+.steps li.rule { border-color: var(--fraud); background: var(--fraud-soft); }
+.steps li.rule .tag { display: inline-block; font-family: var(--font-mono); font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: var(--fraud); margin-left: 8px; }
+
+.feat { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 10px; margin: 0; padding: 0; list-style: none; }
+.feat li { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; min-width: 0; font-size: 15.5px; }
+.feat b { display: block; font-size: 15.5px; }
+.feat span { color: var(--muted); font-size: 14.5px; }
+
+.grid100 { display: grid; grid-template-columns: repeat(20, 1fr); gap: 3px; max-width: 340px; }
+.grid100 i { aspect-ratio: 1; background: var(--ok); border-radius: 50%; }
 .grid100 i.hit { background: var(--fraud); }
 .grid100 i.real { background: var(--good); }
 .grid100 i.false { background: var(--bad); }
-.two { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 18px; }
+.two { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 24px; }
 .two > div { min-width: 0; }
-.two h3 { font-size: 15.5px; margin: 0 0 4px; font-weight: 600; }
-.two p.cap { font-size: 14.5px; color: var(--muted); margin: 8px 0 0; }
-.table-wrap { overflow-x: auto; }
-table { border-collapse: collapse; width: 100%; font-size: 15px; font-variant-numeric: tabular-nums; }
-th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); white-space: nowrap; }
-th { font-family: var(--font-mono); font-size: 12px; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); font-weight: 500; }
+.big { font-family: var(--font-display); font-weight: 800; font-size: 44px; line-height: 1; margin: 0 0 10px; font-variant-numeric: tabular-nums; }
+.cap { font-size: 14.5px; color: var(--muted); margin: 10px 0 0; }
+.legend { display: flex; gap: 6px 16px; flex-wrap: wrap; font-size: 13px; color: var(--muted); margin-top: 8px; }
+.legend i { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 6px; }
+
+.vs { display: grid; grid-template-columns: 78px 1fr; gap: 14px 12px; align-items: center; }
+.vs .lbl { font-family: var(--font-mono); font-size: 13px; color: var(--muted); }
+.vs .pair { display: grid; gap: 4px; min-width: 0; }
+.vs .row { display: grid; grid-template-columns: 1fr 44px; gap: 8px; align-items: center; font-size: 13px; font-variant-numeric: tabular-nums; }
+.vs .t { background: var(--bg); height: 12px; border-radius: 3px; overflow: hidden; }
+.vs .t span { display: block; height: 100%; border-radius: 3px; }
+.vs .p span { background: var(--fraud); }
+.vs .s span { background: var(--ok); }
+.vs .k { color: var(--muted); }
+.key { display: flex; gap: 16px; font-size: 13px; color: var(--muted); margin-bottom: 14px; flex-wrap: wrap; }
+.key i { display: inline-block; width: 12px; height: 12px; border-radius: 3px; margin-right: 6px; vertical-align: -1px; }
+.table-wrap { overflow-x: auto; margin-top: 18px; }
+table { border-collapse: collapse; width: 100%; font-size: 14.5px; font-variant-numeric: tabular-nums; }
+th, td { text-align: left; padding: 7px 10px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+th { font-family: var(--font-mono); font-size: 11.5px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); font-weight: 500; }
 td.best { font-weight: 600; color: var(--good); }
 td.worse { color: var(--bad); }
-code { font-family: var(--font-mono); font-size: .9em; background: var(--bg); border: 1px solid var(--line); border-radius: 3px; padding: 1px 5px; }
-pre { margin: 6px 0 0; padding: 12px 14px; background: var(--bg); border: 1px solid var(--line); border-radius: 5px; font-family: var(--font-mono); font-size: 13px; line-height: 1.5; overflow-x: auto; }
-ul.plain { margin: 0; padding-left: 20px; display: grid; gap: 8px; max-width: 65ch; }
-.warn { border-left: 3px solid var(--fraud); padding: 4px 0 4px 14px; margin: 0; max-width: 65ch; }
-a { color: var(--navy); }
-footer { color: var(--muted); font-size: 14px; border-top: 1px solid var(--line); padding-top: 16px; }
+
+.surprise { display: grid; grid-template-columns: auto 1fr; gap: 6px 22px; align-items: center; background: var(--hero); color: var(--hero-ink); border-radius: 10px; padding: 22px 24px; margin: 8px 0 4px; }
+.surprise .num { font-family: var(--font-display); font-weight: 800; font-size: clamp(38px, 8vw, 56px); line-height: 1; color: var(--hero-fraud); font-variant-numeric: tabular-nums; }
+.surprise .num small { display: block; font-family: var(--font-mono); font-weight: 400; font-size: 11.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--hero-muted); margin-top: 6px; }
+.surprise p { margin: 0; font-size: 16px; max-width: 48ch; }
+@media (max-width: 520px) { .surprise { grid-template-columns: 1fr; } }
+
+.limits { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; }
+.limit { border: 1px solid var(--line); border-top: 3px solid var(--fraud); border-radius: 8px; background: var(--surface); padding: 14px 16px; min-width: 0; }
+.limit h3 { margin-bottom: 4px; }
+.limit p { font-size: 15px; margin: 0; color: var(--muted); }
+.banner { font-weight: 500; font-size: 18px; margin: 0 0 16px; max-width: none; }
+
+pre { margin: 6px 0 0; padding: 14px 16px; background: var(--hero); color: var(--hero-ink); border-radius: 8px; font-family: var(--font-mono); font-size: 13px; line-height: 1.55; overflow-x: auto; }
+pre .k { color: var(--hero-fraud); }
+footer { border-top: 1px solid var(--line); padding-block: 22px 40px; color: var(--muted); font-size: 14px; }
+footer p { max-width: none; margin: 0; }
 </style>
 
 </head>
 <body>
-<main>
-  <header>
-    <div class="kicker">Portfolio case study</div>
-    <h1>Finding fraud in 590,540 card payments</h1>
+<header class="hero">
+  <div class="wrap">
+    <p class="kicker">Portfolio case study</p>
+    <h1>Finding <em>fraud</em> in 590,540 card payments</h1>
     <p class="lead">I built a model that flags fraud in online card payments. This page shows how it works, how well it works, and where it does not work.</p>
     <p class="by">Raj Mistry &middot; MSc Data Science, University of Surrey &middot; Python, XGBoost, FastAPI</p>
-    <dl class="facts">
+  </div>
+  <div class="dotbox">
+    <div class="wrap">
+      <canvas id="dots" aria-hidden="true"></canvas>
+      <div class="dot-cap"><span><i class="b"></i>Safe payment</span><span><i class="a"></i>Fraud</span><span id="dot-count">Each dot is one payment. About 3.5% are fraud.</span></div>
+    </div>
+  </div>
+  <div class="wrap">
+    <dl class="stats">
       <div><dt>Payments</dt><dd>590,540<small>Kaggle IEEE-CIS data</small></dd></div>
-      <div><dt>Fraud share</dt><dd>3.5%<small>about 1 in 29</small></dd></div>
+      <div><dt>Fraud share</dt><dd class="hot">3.5%<small>about 1 in 29</small></dd></div>
       <div><dt>ROC-AUC</dt><dd>0.947<small>on unseen test data</small></dd></div>
-      <div><dt>PR-AUC</dt><dd>0.738<small>main metric</small></dd></div>
+      <div><dt>PR-AUC</dt><dd>0.738<small>the main score</small></dd></div>
     </dl>
-  </header>
+  </div>
+</header>
+
+<div class="wrap">
+<main>
 
   <section>
-    <h2>1. The problem: fraud is rare</h2>
+    <div class="sec-head"><span class="no">1</span><h2>The problem: fraud is rare</h2></div>
     <p>Most payments are safe. Only 3.5 in every 100 are fraud. This makes the task hard.</p>
     <div class="fig">
       <p class="fig-title">All 590,540 payments</p>
-      <div class="strip" role="img" aria-label="96.5 percent legitimate, 3.5 percent fraud"><div class="ok"></div><div class="fr"></div></div>
+      <div class="strip" role="img" aria-label="96.5 percent safe, 3.5 percent fraud"><div class="ok"></div><div class="fr"></div></div>
       <div class="strip-labels"><span>Safe: <b>569,877</b> (96.5%)</span><span class="dot-fr">Fraud: <b>20,663</b> (3.5%)</span></div>
     </div>
     <p>Think about a model that says "safe" for every payment. It is correct 96.5% of the time. It finds zero fraud. So accuracy is a bad measure here. I do not report it anywhere in this project.</p>
     <p>I use three measures instead:</p>
-    <ul class="plain">
-      <li><b>Precision.</b> Of the payments the model flags, how many are really fraud?</li>
-      <li><b>Recall.</b> Of all the fraud, how much does the model find?</li>
-      <li><b>PR-AUC.</b> How well the model ranks fraud above safe payments. It ignores the large number of safe payments, so it is a fair score for rare events.</li>
-    </ul>
+    <div class="metrics">
+      <div class="metric"><h3>Precision</h3><p>Of the payments the model flags, how many are really fraud?</p></div>
+      <div class="metric"><h3>Recall</h3><p>Of all the fraud, how much does the model find?</p></div>
+      <div class="metric"><h3>PR-AUC</h3><p>How well the model ranks fraud above safe payments. It ignores the large number of safe payments, so it is a fair score for rare events.</p></div>
+    </div>
   </section>
 
   <section>
-    <h2>2. What the data shows</h2>
+    <div class="sec-head"><span class="no">2</span><h2>What the data shows</h2></div>
     <p>I looked at the data before I built anything. Each finding led to a decision.</p>
     <div class="fig">
       <p class="fig-title">Fraud rate by product type</p>
@@ -145,7 +217,7 @@ footer { color: var(--muted); font-size: 14px; border-top: 1px solid var(--line)
         <span class="lbl">Type S</span><div class="track"><div class="fill" style="width:50.5%"></div></div><span class="val">5.9%</span>
         <span class="lbl">Type H</span><div class="track"><div class="fill" style="width:40.8%"></div></div><span class="val">4.8%</span>
         <span class="lbl">Type R</span><div class="track"><div class="fill" style="width:32.4%"></div></div><span class="val">3.8%</span>
-        <span class="lbl">Type W</span><div class="track"><div class="fill" style="width:17.5%"></div></div><span class="val">2.0%</span>
+        <span class="lbl">Type W</span><div class="track"><div class="fill alt" style="width:17.5%"></div></div><span class="val">2.0%</span>
       </div>
       <p class="note">Type C has almost six times the fraud rate of type W. I kept product type as a feature.</p>
     </div>
@@ -160,87 +232,103 @@ footer { color: var(--muted); font-size: 14px; border-top: 1px solid var(--line)
   </section>
 
   <section>
-    <h2>3. How I built it</h2>
-    <p>The pipeline has six steps. The order of steps 2 and 3 matters most.</p>
+    <div class="sec-head"><span class="no">3</span><h2>How I built it</h2></div>
+    <p>The pipeline has six steps. The order of steps 2 and 3 matters most. The highlighted steps stop test data from leaking into training.</p>
     <div class="fig">
       <ol class="steps">
-        <li><span class="n">1</span><div><b>Explore the data</b><span class="d">Class balance, missing values, amounts, product types.</span></div></li>
-        <li class="rule"><span class="n">2</span><div><b>Split first: 80% train, 20% test</b><span class="d">The split keeps the same fraud share in both parts. The test set stays untouched until the end.</span></div></li>
-        <li class="rule"><span class="n">3</span><div><b>Build features from the training part only</b><span class="d">Any counts or encodings come from training data. If test data leaks in, the scores look better than they are.</span></div></li>
-        <li><span class="n">4</span><div><b>Train two models</b><span class="d">The same XGBoost settings. One uses the raw data. One uses SMOTE (explained below).</span></div></li>
-        <li><span class="n">5</span><div><b>Score both on the same unseen test set</b><span class="d">118,108 real payments, 3.5% fraud.</span></div></li>
-        <li><span class="n">6</span><div><b>Serve the better model with FastAPI</b><span class="d">One endpoint, <code>/predict</code>, scores one payment.</span></div></li>
+        <li><span class="n">STEP 1</span><b>Explore the data</b><span class="d">Class balance, missing values, amounts, product types.</span></li>
+        <li class="rule"><span class="n">STEP 2</span><span class="tag">Leak guard</span><b>Split first: 80% train, 20% test</b><span class="d">The split keeps the same fraud share in both parts. The test set stays untouched until the end.</span></li>
+        <li class="rule"><span class="n">STEP 3</span><span class="tag">Leak guard</span><b>Build features from the training part only</b><span class="d">Counts and encodings come from training data. If test data leaks in, the scores look better than they are.</span></li>
+        <li><span class="n">STEP 4</span><b>Train two models</b><span class="d">The same XGBoost settings. One uses the raw data. One uses SMOTE, which makes extra fake fraud examples.</span></li>
+        <li><span class="n">STEP 5</span><b>Score both on the same unseen test set</b><span class="d">118,108 real payments, 3.5% fraud.</span></li>
+        <li><span class="n">STEP 6</span><b>Serve the better model with FastAPI</b><span class="d">One endpoint, <code>/predict</code>, scores one payment.</span></li>
       </ol>
     </div>
-    <p>I made these features, each from a finding in step 1:</p>
-    <ul class="plain">
-      <li><b>Log of the amount.</b> Amounts have a long tail of big purchases. The log makes the spread easier for the model to use.</li>
-      <li><b>Hour and day of week.</b> Fraud scripts often run at night.</li>
-      <li><b>Device data present.</b> From the finding above.</li>
-      <li><b>Email domains match.</b> A buyer and a recipient with different email domains can be a warning sign.</li>
-      <li><b>How common is this card.</b> A card the model rarely sees is a different risk from a card it sees often.</li>
-      <li><b>Count of missing fields.</b> It shows which system produced the row.</li>
+    <p>I made these features. Each one comes from a finding in step 1.</p>
+    <ul class="feat">
+      <li><b>Log of the amount</b><span>Amounts have a long tail of big purchases. The log makes the spread easier to use.</span></li>
+      <li><b>Hour and day of week</b><span>Fraud scripts often run at night.</span></li>
+      <li><b>Device data present</b><span>From the finding in section 2.</span></li>
+      <li><b>Email domains match</b><span>A buyer and a recipient with different domains can be a warning sign.</span></li>
+      <li><b>How common is this card</b><span>A card the model rarely sees is a different risk from a card it sees often.</span></li>
+      <li><b>Count of missing fields</b><span>It shows which system produced the row.</span></li>
     </ul>
   </section>
 
   <section>
-    <h2>4. Results</h2>
+    <div class="sec-head"><span class="no">4</span><h2>Results</h2></div>
     <p>The model flags few payments, and most of its flags are right. It misses about half of the fraud.</p>
     <div class="fig">
       <div class="two">
         <div>
-          <h3>Precision: 0.93</h3>
+          <p class="big">93<span style="font-size:.5em;font-weight:700"> of 100</span></p>
+          <h3>Precision 0.93</h3>
           <div class="grid100" id="g-prec" role="img" aria-label="Of 100 flagged payments, about 93 are fraud and 7 are not"></div>
+          <div class="legend"><span><i style="background:var(--good)"></i>Real fraud</span><span><i style="background:var(--bad)"></i>False alarm</span></div>
           <p class="cap">Take 100 flagged payments. About 93 are fraud. About 7 are safe payments flagged by mistake.</p>
         </div>
         <div>
-          <h3>Recall: 0.50</h3>
+          <p class="big">50<span style="font-size:.5em;font-weight:700"> of 100</span></p>
+          <h3>Recall 0.50</h3>
           <div class="grid100" id="g-rec" role="img" aria-label="Of 100 fraud cases, the model finds about 50"></div>
+          <div class="legend"><span><i style="background:var(--fraud)"></i>Found</span><span><i style="background:var(--ok)"></i>Missed</span></div>
           <p class="cap">Take 100 fraud cases. The model finds about 50. The other 50 get through.</p>
         </div>
       </div>
     </div>
     <p>Recall is the weak point. I use the standard 0.5 cut-off. A lower cut-off would find more fraud but flag more safe payments. The right cut-off depends on what a miss costs against what a false alarm costs. I do not have those costs, so I did not tune it.</p>
-    <div class="fig">
+
+    <div class="fig" style="margin-top:20px">
       <p class="fig-title">Plain model against SMOTE model, same unseen test set</p>
+      <div class="key"><span><i style="background:var(--fraud)"></i>Plain model (shipped)</span><span><i style="background:var(--ok)"></i>SMOTE model</span></div>
+      <div class="vs">
+        <span class="lbl">Precision</span><div class="pair"><div class="row p"><div class="t"><span style="width:92.6%"></span></div><span>0.926</span></div><div class="row s"><div class="t"><span style="width:85.4%"></span></div><span class="k">0.854</span></div></div>
+        <span class="lbl">Recall</span><div class="pair"><div class="row p"><div class="t"><span style="width:50.3%"></span></div><span>0.503</span></div><div class="row s"><div class="t"><span style="width:46.7%"></span></div><span class="k">0.467</span></div></div>
+        <span class="lbl">F1</span><div class="pair"><div class="row p"><div class="t"><span style="width:65.2%"></span></div><span>0.652</span></div><div class="row s"><div class="t"><span style="width:60.4%"></span></div><span class="k">0.604</span></div></div>
+        <span class="lbl">ROC-AUC</span><div class="pair"><div class="row p"><div class="t"><span style="width:94.7%"></span></div><span>0.947</span></div><div class="row s"><div class="t"><span style="width:92.3%"></span></div><span class="k">0.923</span></div></div>
+        <span class="lbl">PR-AUC</span><div class="pair"><div class="row p"><div class="t"><span style="width:73.8%"></span></div><span>0.738</span></div><div class="row s"><div class="t"><span style="width:64.7%"></span></div><span class="k">0.647</span></div></div>
+      </div>
       <div class="table-wrap">
         <table>
-          <thead><tr><th>Measure</th><th>Plain</th><th>SMOTE</th></tr></thead>
+          <thead><tr><th>Measure</th><th>Plain</th><th>SMOTE</th><th>Change</th></tr></thead>
           <tbody>
-            <tr><td>Precision</td><td class="best">0.926</td><td class="worse">0.854</td></tr>
-            <tr><td>Recall</td><td class="best">0.503</td><td class="worse">0.467</td></tr>
-            <tr><td>F1</td><td class="best">0.652</td><td class="worse">0.604</td></tr>
-            <tr><td>ROC-AUC</td><td class="best">0.947</td><td class="worse">0.923</td></tr>
-            <tr><td>PR-AUC</td><td class="best">0.738</td><td class="worse">0.647</td></tr>
+            <tr><td>Precision</td><td class="best">0.926</td><td class="worse">0.854</td><td>-0.071</td></tr>
+            <tr><td>Recall</td><td class="best">0.503</td><td class="worse">0.467</td><td>-0.036</td></tr>
+            <tr><td>F1</td><td class="best">0.652</td><td class="worse">0.604</td><td>-0.048</td></tr>
+            <tr><td>ROC-AUC</td><td class="best">0.947</td><td class="worse">0.923</td><td>-0.025</td></tr>
+            <tr><td>PR-AUC</td><td class="best">0.738</td><td class="worse">0.647</td><td>-0.091</td></tr>
           </tbody>
         </table>
       </div>
     </div>
-    <p><b>The surprise.</b> SMOTE makes fake fraud examples so the training data is balanced. Many guides say it helps. Here it made every score worse. I report this result and I ship the plain model. I did not want to pick the method I expected to win.</p>
+    <div class="surprise">
+      <div class="num">-0.09<small>PR-AUC with SMOTE</small></div>
+      <p><b>The surprise.</b> Many guides say SMOTE helps with rare events. Here it made every score worse. I report this result and I ship the plain model. I did not want to pick the method I expected to win.</p>
+    </div>
   </section>
 
   <section>
-    <h2>5. Where it is weak</h2>
-    <p class="warn">This is a portfolio project. It is not a production fraud system.</p>
-    <ul class="plain" style="margin-top:14px">
-      <li><b>Random split.</b> The data is ordered in time, but I split it at random. A real system only knows the past. A time-based split would give a lower, more honest score.</li>
-      <li><b>No tuning.</b> I used fixed, sensible settings for both models. This keeps the comparison fair. It also means the scores are not the best this data can give.</li>
-      <li><b>The API sees less than the test did.</b> The test used 435 features. The <code>/predict</code> endpoint takes only 16 plain payment fields, such as amount, product type, card type and email domains. The rest are missing, so live scores are less accurate than the table above.</li>
-      <li><b>Left out on purpose.</b> Free-text device and browser strings. Parsing them well is a project of its own.</li>
-    </ul>
+    <div class="sec-head"><span class="no">5</span><h2>Where it is weak</h2></div>
+    <p class="banner">This is a portfolio project. It is not a production fraud system.</p>
+    <div class="limits">
+      <div class="limit"><h3>Random split</h3><p>The data is ordered in time, but I split it at random. A real system only knows the past. A time-based split would give a lower, more honest score.</p></div>
+      <div class="limit"><h3>No tuning</h3><p>I used fixed, sensible settings for both models. This keeps the comparison fair. It also means the scores are not the best this data can give.</p></div>
+      <div class="limit"><h3>The API sees less than the test did</h3><p>The test used 435 features. The <code>/predict</code> endpoint takes only 16 plain payment fields, such as amount, product type, card type and email domains. Live scores are less accurate than the results above.</p></div>
+      <div class="limit"><h3>Left out on purpose</h3><p>Free-text device and browser strings. Parsing them well is a project of its own.</p></div>
+    </div>
   </section>
 
   <section>
-    <h2>6. What I would do next</h2>
+    <div class="sec-head"><span class="no">6</span><h2>What I would do next</h2></div>
     <ul class="plain">
       <li>Switch to a time-based split and report the new scores.</li>
       <li>Choose the cut-off from a real cost for missed fraud and for false alarms.</li>
       <li>Parse the device and browser strings into usable features.</li>
       <li>Add a monitoring check for drift, because fraud patterns change.</li>
     </ul>
-    <h2 style="margin-top:28px">The API</h2>
+    <h3 style="margin-top:22px">The API</h3>
     <p>You send one payment. You get a fraud probability back.</p>
-    <pre>POST /predict
+    <pre><span class="k">POST</span> /predict
 { "TransactionAmt": 125.0, "ProductCD": "W",
   "card4": "visa", "card6": "debit",
   "P_emaildomain": "gmail.com", "DeviceType": "desktop" }
@@ -250,10 +338,11 @@ footer { color: var(--muted); font-size: 14px; border-top: 1px solid var(--line)
     <p class="note">The response shape comes from the code. The probability above is a placeholder, not a real model output.</p>
   </section>
 
-  <footer>
-    Data: Kaggle IEEE-CIS Fraud Detection (590,540 transactions, 434 columns). All numbers on this page come from the project's saved results file. Code and notes: <a href="https://www.github.com/RajProject7" target="_blank" rel="noopener">github.com/RajProject7</a>.
-  </footer>
 </main>
+<footer>
+  <p>Data: Kaggle IEEE-CIS Fraud Detection (590,540 transactions, 434 columns). All numbers on this page come from the project's saved results file. Code and notes: <a href="https://www.github.com/RajProject7" target="_blank" rel="noopener">github.com/RajProject7</a>.</p>
+</footer>
+</div>
 
 <script>
 (function () {
@@ -263,10 +352,39 @@ footer { color: var(--muted); font-size: 14px; border-top: 1px solid var(--line)
     for (var i = 0; i < total; i++) html += '<i class="' + (marks(i) || "") + '"></i>';
     el.innerHTML = html;
   }
-  // Precision 0.926: 93 of 100 flagged are real fraud, 7 are false alarms.
   fill("g-prec", 100, function (i) { return i < 93 ? "real" : "false"; });
-  // Recall 0.503: 50 of 100 fraud cases found.
   fill("g-rec", 100, function (i) { return i < 50 ? "hit" : ""; });
+
+  // Dot field: every dot is one payment. A fixed seed keeps the pattern the same on every visit.
+  var canvas = document.getElementById("dots");
+  if (!canvas || !canvas.getContext) return;
+  function rng(seed) { return function () { seed |= 0; seed = seed + 0x6D2B79F5 | 0; var t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+  function draw() {
+    var w = canvas.clientWidth, h = canvas.clientHeight, dpr = window.devicePixelRatio || 1;
+    if (!w || !h) return;
+    canvas.width = Math.round(w * dpr); canvas.height = Math.round(h * dpr);
+    var ctx = canvas.getContext("2d"); ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, w, h);
+    var pitch = w < 520 ? 14 : 17, cols = Math.floor(w / pitch), rows = Math.floor(h / pitch);
+    var ox = (w - cols * pitch) / 2 + pitch / 2, oy = (h - rows * pitch) / 2 + pitch / 2;
+    var r = rng(2027), total = cols * rows, fraud = Math.round(total * 0.035), pick = {}, idx = [], k;
+    for (k = 0; k < total; k++) idx.push(k);
+    for (k = total - 1; k > 0; k--) { var j = Math.floor(r() * (k + 1)), tmp = idx[k]; idx[k] = idx[j]; idx[j] = tmp; }
+    for (k = 0; k < fraud; k++) pick[idx[k]] = true;
+    for (var y = 0; y < rows; y++) for (var x = 0; x < cols; x++) {
+      var cx = ox + x * pitch, cy = oy + y * pitch, isF = !!pick[y * cols + x];
+      if (isF) {
+        ctx.fillStyle = "rgba(255,162,74,.18)"; ctx.beginPath(); ctx.arc(cx, cy, 7.5, 0, 6.2832); ctx.fill();
+        ctx.fillStyle = "#ffa24a"; ctx.beginPath(); ctx.arc(cx, cy, 4, 0, 6.2832); ctx.fill();
+      } else {
+        ctx.fillStyle = "rgba(157,176,216,.38)"; ctx.beginPath(); ctx.arc(cx, cy, 2.6, 0, 6.2832); ctx.fill();
+      }
+    }
+    var c = document.getElementById("dot-count");
+    if (c) c.textContent = total.toLocaleString("en-GB") + " dots shown: " + fraud + " are fraud (" + (100 * fraud / total).toFixed(1) + "%), close to the real rate of 3.5%.";
+  }
+  draw();
+  var t; window.addEventListener("resize", function () { clearTimeout(t); t = setTimeout(draw, 120); });
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(draw);
 })();
 </script>
 
