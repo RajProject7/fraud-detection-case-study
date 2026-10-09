@@ -1,0 +1,274 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Case study: an XGBoost fraud classifier built on 590,540 card payments, with results, limits and diagrams.">
+<title>Fraud Detection Case Study</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* Layout: single reading column, facts first, one diagram per section. Signal amber marks fraud everywhere. */
+:root {
+  --bg: #f6f7fa;
+  --surface: #ffffff;
+  --ink: #16213a;
+  --muted: #55607a;
+  --line: #d9deea;
+  --navy: #1f3864;
+  --fraud: #c2570a;
+  --fraud-soft: #fbe3cf;
+  --ok: #cfd6e6;
+  --good: #1d7a55;
+  --bad: #a3361f;
+  --font-body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0f1526; --surface: #172039; --ink: #e6eaf5; --muted: #9aa5c2; --line: #2b3657;
+    --navy: #8fb0ee; --fraud: #f29a52; --fraud-soft: #4a2a12; --ok: #34406a; --good: #52c79a; --bad: #f08a73;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0f1526; --surface: #172039; --ink: #e6eaf5; --muted: #9aa5c2; --line: #2b3657;
+  --navy: #8fb0ee; --fraud: #f29a52; --fraud-soft: #4a2a12; --ok: #34406a; --good: #52c79a; --bad: #f08a73;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--bg); color: var(--ink);
+  font-family: var(--font-body); font-size: 17px; line-height: 1.6;
+  padding-inline: 16px; padding-block: 40px 72px;
+}
+main { max-width: 720px; margin: 0 auto; display: flex; flex-direction: column; gap: 44px; }
+header { display: flex; flex-direction: column; gap: 14px; }
+.kicker { font-family: var(--font-mono); font-size: 12.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--fraud); }
+h1 { font-size: clamp(30px, 6vw, 42px); line-height: 1.12; margin: 0; font-weight: 600; text-wrap: balance; letter-spacing: -.01em; }
+h2 { font-size: 22px; line-height: 1.25; margin: 0 0 12px; font-weight: 600; text-wrap: balance; }
+p { margin: 0 0 12px; max-width: 65ch; }
+.lead { font-size: 19px; color: var(--ink); max-width: 60ch; }
+.by { color: var(--muted); font-size: 15px; margin: 0; }
+section { display: flex; flex-direction: column; }
+.facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
+.facts div { background: var(--surface); padding: 12px 14px; min-width: 0; }
+.facts dt { font-family: var(--font-mono); font-size: 11.5px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.facts dd { margin: 2px 0 0; font-size: 22px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.facts small { display: block; font-size: 13px; font-weight: 400; color: var(--muted); }
+.fig { background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 16px; margin: 6px 0 14px; min-width: 0; }
+.fig-title { font-family: var(--font-mono); font-size: 12px; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); margin: 0 0 10px; }
+.note { font-size: 14.5px; color: var(--muted); margin: 10px 0 0; }
+.strip { display: flex; height: 34px; border-radius: 4px; overflow: hidden; border: 1px solid var(--line); }
+.strip .ok { background: var(--ok); flex: 96.5; }
+.strip .fr { background: var(--fraud); flex: 3.5; }
+.strip-labels { display: flex; justify-content: space-between; gap: 12px; font-size: 14px; margin-top: 8px; flex-wrap: wrap; }
+.strip-labels b { font-variant-numeric: tabular-nums; }
+.dot-fr { color: var(--fraud); }
+.bars { display: grid; grid-template-columns: 74px 1fr 56px; gap: 8px 10px; align-items: center; font-size: 14.5px; }
+.bars .lbl { font-family: var(--font-mono); font-size: 13px; color: var(--muted); }
+.bars .track { background: var(--bg); border-radius: 3px; height: 16px; overflow: hidden; min-width: 0; }
+.bars .fill { height: 100%; background: var(--fraud); }
+.bars .fill.alt { background: var(--ok); }
+.bars .val { font-variant-numeric: tabular-nums; text-align: right; }
+.steps { list-style: none; padding: 0; margin: 0; display: grid; gap: 8px; }
+.steps li { display: grid; grid-template-columns: 30px 1fr; gap: 10px; align-items: start; background: var(--bg); border: 1px solid var(--line); border-radius: 5px; padding: 10px 12px; }
+.steps .n { font-family: var(--font-mono); font-size: 13px; color: var(--navy); border: 1px solid var(--navy); border-radius: 50%; width: 26px; height: 26px; display: grid; place-items: center; }
+.steps b { display: block; font-weight: 600; }
+.steps span.d { font-size: 14.5px; color: var(--muted); }
+.steps li.rule { border-color: var(--fraud); }
+.grid100 { display: grid; grid-template-columns: repeat(20, 1fr); gap: 3px; max-width: 360px; }
+.grid100 i { aspect-ratio: 1; background: var(--ok); border-radius: 2px; }
+.grid100 i.hit { background: var(--fraud); }
+.grid100 i.real { background: var(--good); }
+.grid100 i.false { background: var(--bad); }
+.two { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 18px; }
+.two > div { min-width: 0; }
+.two h3 { font-size: 15.5px; margin: 0 0 4px; font-weight: 600; }
+.two p.cap { font-size: 14.5px; color: var(--muted); margin: 8px 0 0; }
+.table-wrap { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-size: 15px; font-variant-numeric: tabular-nums; }
+th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+th { font-family: var(--font-mono); font-size: 12px; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); font-weight: 500; }
+td.best { font-weight: 600; color: var(--good); }
+td.worse { color: var(--bad); }
+code { font-family: var(--font-mono); font-size: .9em; background: var(--bg); border: 1px solid var(--line); border-radius: 3px; padding: 1px 5px; }
+pre { margin: 6px 0 0; padding: 12px 14px; background: var(--bg); border: 1px solid var(--line); border-radius: 5px; font-family: var(--font-mono); font-size: 13px; line-height: 1.5; overflow-x: auto; }
+ul.plain { margin: 0; padding-left: 20px; display: grid; gap: 8px; max-width: 65ch; }
+.warn { border-left: 3px solid var(--fraud); padding: 4px 0 4px 14px; margin: 0; max-width: 65ch; }
+a { color: var(--navy); }
+footer { color: var(--muted); font-size: 14px; border-top: 1px solid var(--line); padding-top: 16px; }
+</style>
+
+</head>
+<body>
+<main>
+  <header>
+    <div class="kicker">Portfolio case study</div>
+    <h1>Finding fraud in 590,540 card payments</h1>
+    <p class="lead">I built a model that flags fraud in online card payments. This page shows how it works, how well it works, and where it does not work.</p>
+    <p class="by">Raj Mistry &middot; MSc Data Science, University of Surrey &middot; Python, XGBoost, FastAPI</p>
+    <dl class="facts">
+      <div><dt>Payments</dt><dd>590,540<small>Kaggle IEEE-CIS data</small></dd></div>
+      <div><dt>Fraud share</dt><dd>3.5%<small>about 1 in 29</small></dd></div>
+      <div><dt>ROC-AUC</dt><dd>0.947<small>on unseen test data</small></dd></div>
+      <div><dt>PR-AUC</dt><dd>0.738<small>main metric</small></dd></div>
+    </dl>
+  </header>
+
+  <section>
+    <h2>1. The problem: fraud is rare</h2>
+    <p>Most payments are safe. Only 3.5 in every 100 are fraud. This makes the task hard.</p>
+    <div class="fig">
+      <p class="fig-title">All 590,540 payments</p>
+      <div class="strip" role="img" aria-label="96.5 percent legitimate, 3.5 percent fraud"><div class="ok"></div><div class="fr"></div></div>
+      <div class="strip-labels"><span>Safe: <b>569,877</b> (96.5%)</span><span class="dot-fr">Fraud: <b>20,663</b> (3.5%)</span></div>
+    </div>
+    <p>Think about a model that says "safe" for every payment. It is correct 96.5% of the time. It finds zero fraud. So accuracy is a bad measure here. I do not report it anywhere in this project.</p>
+    <p>I use three measures instead:</p>
+    <ul class="plain">
+      <li><b>Precision.</b> Of the payments the model flags, how many are really fraud?</li>
+      <li><b>Recall.</b> Of all the fraud, how much does the model find?</li>
+      <li><b>PR-AUC.</b> How well the model ranks fraud above safe payments. It ignores the large number of safe payments, so it is a fair score for rare events.</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>2. What the data shows</h2>
+    <p>I looked at the data before I built anything. Each finding led to a decision.</p>
+    <div class="fig">
+      <p class="fig-title">Fraud rate by product type</p>
+      <div class="bars">
+        <span class="lbl">Type C</span><div class="track"><div class="fill" style="width:100%"></div></div><span class="val">11.7%</span>
+        <span class="lbl">Type S</span><div class="track"><div class="fill" style="width:50.5%"></div></div><span class="val">5.9%</span>
+        <span class="lbl">Type H</span><div class="track"><div class="fill" style="width:40.8%"></div></div><span class="val">4.8%</span>
+        <span class="lbl">Type R</span><div class="track"><div class="fill" style="width:32.4%"></div></div><span class="val">3.8%</span>
+        <span class="lbl">Type W</span><div class="track"><div class="fill" style="width:17.5%"></div></div><span class="val">2.0%</span>
+      </div>
+      <p class="note">Type C has almost six times the fraud rate of type W. I kept product type as a feature.</p>
+    </div>
+    <div class="fig">
+      <p class="fig-title">Fraud rate with and without device data</p>
+      <div class="bars">
+        <span class="lbl">No data</span><div class="track"><div class="fill alt" style="width:26.7%"></div></div><span class="val">2.1%</span>
+        <span class="lbl">Has data</span><div class="track"><div class="fill" style="width:100%"></div></div><span class="val">7.8%</span>
+      </div>
+      <p class="note">Only 24.4% of payments have device data. Payments that have it are almost four times as likely to be fraud. A missing value can carry information, so I did not fill it in blindly. I added a feature that says "device data is present".</p>
+    </div>
+  </section>
+
+  <section>
+    <h2>3. How I built it</h2>
+    <p>The pipeline has six steps. The order of steps 2 and 3 matters most.</p>
+    <div class="fig">
+      <ol class="steps">
+        <li><span class="n">1</span><div><b>Explore the data</b><span class="d">Class balance, missing values, amounts, product types.</span></div></li>
+        <li class="rule"><span class="n">2</span><div><b>Split first: 80% train, 20% test</b><span class="d">The split keeps the same fraud share in both parts. The test set stays untouched until the end.</span></div></li>
+        <li class="rule"><span class="n">3</span><div><b>Build features from the training part only</b><span class="d">Any counts or encodings come from training data. If test data leaks in, the scores look better than they are.</span></div></li>
+        <li><span class="n">4</span><div><b>Train two models</b><span class="d">The same XGBoost settings. One uses the raw data. One uses SMOTE (explained below).</span></div></li>
+        <li><span class="n">5</span><div><b>Score both on the same unseen test set</b><span class="d">118,108 real payments, 3.5% fraud.</span></div></li>
+        <li><span class="n">6</span><div><b>Serve the better model with FastAPI</b><span class="d">One endpoint, <code>/predict</code>, scores one payment.</span></div></li>
+      </ol>
+    </div>
+    <p>I made these features, each from a finding in step 1:</p>
+    <ul class="plain">
+      <li><b>Log of the amount.</b> Amounts have a long tail of big purchases. The log makes the spread easier for the model to use.</li>
+      <li><b>Hour and day of week.</b> Fraud scripts often run at night.</li>
+      <li><b>Device data present.</b> From the finding above.</li>
+      <li><b>Email domains match.</b> A buyer and a recipient with different email domains can be a warning sign.</li>
+      <li><b>How common is this card.</b> A card the model rarely sees is a different risk from a card it sees often.</li>
+      <li><b>Count of missing fields.</b> It shows which system produced the row.</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>4. Results</h2>
+    <p>The model flags few payments, and most of its flags are right. It misses about half of the fraud.</p>
+    <div class="fig">
+      <div class="two">
+        <div>
+          <h3>Precision: 0.93</h3>
+          <div class="grid100" id="g-prec" role="img" aria-label="Of 100 flagged payments, about 93 are fraud and 7 are not"></div>
+          <p class="cap">Take 100 flagged payments. About 93 are fraud. About 7 are safe payments flagged by mistake.</p>
+        </div>
+        <div>
+          <h3>Recall: 0.50</h3>
+          <div class="grid100" id="g-rec" role="img" aria-label="Of 100 fraud cases, the model finds about 50"></div>
+          <p class="cap">Take 100 fraud cases. The model finds about 50. The other 50 get through.</p>
+        </div>
+      </div>
+    </div>
+    <p>Recall is the weak point. I use the standard 0.5 cut-off. A lower cut-off would find more fraud but flag more safe payments. The right cut-off depends on what a miss costs against what a false alarm costs. I do not have those costs, so I did not tune it.</p>
+    <div class="fig">
+      <p class="fig-title">Plain model against SMOTE model, same unseen test set</p>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Measure</th><th>Plain</th><th>SMOTE</th></tr></thead>
+          <tbody>
+            <tr><td>Precision</td><td class="best">0.926</td><td class="worse">0.854</td></tr>
+            <tr><td>Recall</td><td class="best">0.503</td><td class="worse">0.467</td></tr>
+            <tr><td>F1</td><td class="best">0.652</td><td class="worse">0.604</td></tr>
+            <tr><td>ROC-AUC</td><td class="best">0.947</td><td class="worse">0.923</td></tr>
+            <tr><td>PR-AUC</td><td class="best">0.738</td><td class="worse">0.647</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <p><b>The surprise.</b> SMOTE makes fake fraud examples so the training data is balanced. Many guides say it helps. Here it made every score worse. I report this result and I ship the plain model. I did not want to pick the method I expected to win.</p>
+  </section>
+
+  <section>
+    <h2>5. Where it is weak</h2>
+    <p class="warn">This is a portfolio project. It is not a production fraud system.</p>
+    <ul class="plain" style="margin-top:14px">
+      <li><b>Random split.</b> The data is ordered in time, but I split it at random. A real system only knows the past. A time-based split would give a lower, more honest score.</li>
+      <li><b>No tuning.</b> I used fixed, sensible settings for both models. This keeps the comparison fair. It also means the scores are not the best this data can give.</li>
+      <li><b>The API sees less than the test did.</b> The test used 435 features. The <code>/predict</code> endpoint takes only 16 plain payment fields, such as amount, product type, card type and email domains. The rest are missing, so live scores are less accurate than the table above.</li>
+      <li><b>Left out on purpose.</b> Free-text device and browser strings. Parsing them well is a project of its own.</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>6. What I would do next</h2>
+    <ul class="plain">
+      <li>Switch to a time-based split and report the new scores.</li>
+      <li>Choose the cut-off from a real cost for missed fraud and for false alarms.</li>
+      <li>Parse the device and browser strings into usable features.</li>
+      <li>Add a monitoring check for drift, because fraud patterns change.</li>
+    </ul>
+    <h2 style="margin-top:28px">The API</h2>
+    <p>You send one payment. You get a fraud probability back.</p>
+    <pre>POST /predict
+{ "TransactionAmt": 125.0, "ProductCD": "W",
+  "card4": "visa", "card6": "debit",
+  "P_emaildomain": "gmail.com", "DeviceType": "desktop" }
+
+&rarr; { "fraud_probability": 0.xx, "is_fraud": false,
+       "threshold": 0.5, "model_type": "baseline" }</pre>
+    <p class="note">The response shape comes from the code. The probability above is a placeholder, not a real model output.</p>
+  </section>
+
+  <footer>
+    Data: Kaggle IEEE-CIS Fraud Detection (590,540 transactions, 434 columns). All numbers on this page come from the project's saved results file. Code and notes: <a href="https://www.github.com/RajProject7" target="_blank" rel="noopener">github.com/RajProject7</a>.
+  </footer>
+</main>
+
+<script>
+(function () {
+  function fill(id, total, marks) {
+    var el = document.getElementById(id); if (!el) return;
+    var html = "";
+    for (var i = 0; i < total; i++) html += '<i class="' + (marks(i) || "") + '"></i>';
+    el.innerHTML = html;
+  }
+  // Precision 0.926: 93 of 100 flagged are real fraud, 7 are false alarms.
+  fill("g-prec", 100, function (i) { return i < 93 ? "real" : "false"; });
+  // Recall 0.503: 50 of 100 fraud cases found.
+  fill("g-rec", 100, function (i) { return i < 50 ? "hit" : ""; });
+})();
+</script>
+
+</body>
+</html>
